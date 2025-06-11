@@ -1,0 +1,37 @@
+version: '3.8'
+
+services:
+  postgres-payments:
+    image: postgres:15-alpine
+    container_name: postgres-payments
+    environment:
+      POSTGRES_DB: payments
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: sara
+    ports:
+      - "5433:5432"
+    volumes:
+      - datos_postgres:/var/lib/postgresql/data
+      - ./scripts:/docker-entrypoint-initdb.d
+    networks:
+      - red-payments
+
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: pgadmin-payments
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@admin.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+    ports:
+      - "5051:80"
+    depends_on:
+      - postgres-payments
+    networks:
+      - red-payments
+
+volumes:
+  datos_postgres:
+
+networks:
+  red-payments:
+    driver: bridge
