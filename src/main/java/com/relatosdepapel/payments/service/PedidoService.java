@@ -28,7 +28,7 @@ public class PedidoService {
         try {
             // Validación con el microservicio de catálogo
             ResponseEntity<String> response = restTemplate.getForEntity(
-                    "http://localhost:8081/api/libros" + libroId,
+                    "http://localhost:8081/api/libros/" + libroId,
                     String.class);
 
             if (!response.getStatusCode().is2xxSuccessful()) {
