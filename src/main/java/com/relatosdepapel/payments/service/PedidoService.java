@@ -9,6 +9,7 @@ import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
 
 import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.time.LocalDateTime;
 
@@ -16,32 +17,40 @@ import java.time.LocalDateTime;
 public class PedidoService {
 
     private final PedidoRepository pedidoRepository;
-    private final RestTemplate restTemplate = new RestTemplate();
+    private final RestTemplate restTemplate;
 
-    public PedidoService(PedidoRepository pedidoRepository) {
+    public PedidoService(PedidoRepository pedidoRepository, RestTemplate restTemplate) {
         this.pedidoRepository = pedidoRepository;
+        this.restTemplate = restTemplate;
     }
 
-    public Pedido guardarPedido(Pedido pedido) {
-        Long libroId = pedido.getLibroId();
-
+    /**
+     * Realiza una llamada al microservicio de catálogo para verificar si el libro existe.
+     * Si no existe, lanza una excepción adecuada.
+     */
+    private void validarLibroEnCatalogo(Long libroId) {
         try {
-            // Validación con el microservicio de catálogo
             ResponseEntity<String> response = restTemplate.getForEntity(
-                    "http://localhost:8081/api/libros/" + libroId,
-                    String.class);
+                    "http://ms-books-catalogue/api/libros/" + libroId, String.class);
 
             if (!response.getStatusCode().is2xxSuccessful()) {
-                throw new RuntimeException("Libro no válido o no disponible.");
+                throw new NoSuchElementException("Libro no válido o no disponible con ID: " + libroId);
             }
 
         } catch (HttpClientErrorException.NotFound e) {
-            throw new RuntimeException("El libro con ID " + libroId + " no existe.");
+            throw new NoSuchElementException("Libro no encontrado con ID: " + libroId);
+        } catch (HttpClientErrorException.BadRequest e) {
+            throw new IllegalArgumentException("Solicitud incorrecta al verificar el libro.");
         } catch (Exception e) {
             throw new RuntimeException("Error al validar el libro: " + e.getMessage());
         }
+    }
 
-        // Si todo va bien, guardar el pedido
+
+    public Pedido guardarPedido(Pedido pedido) {
+        Long libroId = pedido.getLibroId();
+        validarLibroEnCatalogo(libroId);
+
         pedido.setFechaCompra(LocalDateTime.now());
         return pedidoRepository.save(pedido);
     }
