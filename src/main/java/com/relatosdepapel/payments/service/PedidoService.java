@@ -1,17 +1,19 @@
 package com.relatosdepapel.payments.service;
 
+import com.relatosdepapel.payments.dto.ItemDTO;
+import com.relatosdepapel.payments.dto.PedidoRequestDTO;
 import com.relatosdepapel.payments.model.Pedido;
 import com.relatosdepapel.payments.repository.PedidoRepository;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
 
+import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Optional;
-import java.time.LocalDateTime;
 
 @Service
 public class PedidoService {
@@ -24,11 +26,7 @@ public class PedidoService {
         this.restTemplate = restTemplate;
     }
 
-    /**
-     * Realiza una llamada al microservicio de catálogo para verificar si el libro existe.
-     * Si no existe, lanza una excepción adecuada.
-     */
-    private void validarLibroEnCatalogo(Long libroId) {
+    private void validarLibroEnCatalogo(String libroId) {
         try {
             ResponseEntity<String> response = restTemplate.getForEntity(
                     "http://ms-books-catalogue/api/libros/" + libroId, String.class);
@@ -46,13 +44,23 @@ public class PedidoService {
         }
     }
 
+    public List<Pedido> crearMultiplesPedidos(PedidoRequestDTO dto) {
+        List<Pedido> pedidos = new ArrayList<>();
 
-    public Pedido guardarPedido(Pedido pedido) {
-        Long libroId = pedido.getLibroId();
-        validarLibroEnCatalogo(libroId);
+        for (ItemDTO item : dto.getItems()) {
+            validarLibroEnCatalogo(item.getLibroId());
 
-        pedido.setFechaCompra(LocalDateTime.now());
-        return pedidoRepository.save(pedido);
+            Pedido pedido = new Pedido();
+            pedido.setLibroId(item.getLibroId());
+            pedido.setCantidad(item.getCantidad());
+            pedido.setNombreComprador(dto.getNombreComprador());
+            pedido.setEmailComprador(dto.getEmailComprador());
+            pedido.setFechaCompra(LocalDateTime.now());
+
+            pedidos.add(pedidoRepository.save(pedido));
+        }
+
+        return pedidos;
     }
 
     public List<Pedido> obtenerPedidos() {
@@ -62,5 +70,4 @@ public class PedidoService {
     public Optional<Pedido> findById(Long id) {
         return pedidoRepository.findById(id);
     }
-
 }
